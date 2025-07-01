@@ -1,0 +1,32 @@
+{
+  "name": "fleet-management",
+  "version": "1.0.0",
+  "description": "Some backend app for fleet manegement",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-async-handler": "^1.2.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^6.7.0",
+    "helmet": "^7.0.0",
+    "hpp": "^0.2.3",
+    "http-status-codes": "^2.2.0",
+    "mongoose": "^8.0.3",
+    "morgan": "^1.10.0",
+    "validator": "^13.11.0",
+    "xss-clean": "^0.1.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
