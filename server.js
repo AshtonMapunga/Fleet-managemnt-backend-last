@@ -1,5 +1,10 @@
+const mongoose = require('mongoose');  // Add this line at the top of server.js
 const express = require('express');
 const connectDB = require('./config/db');
+mongoose.connection.once('open', async () => {
+  const count = await mongoose.connection.db.collection('driverbookings').countDocuments();
+  console.log(`DriverBookings collection has ${count} documents`);
+});
 const env = require('./config/env');
 const morgan = require('morgan');
 const helmet = require('helmet');

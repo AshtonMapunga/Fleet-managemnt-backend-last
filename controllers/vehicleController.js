@@ -159,6 +159,34 @@ const getVehiclesByStatus = asyncHandler(async (req, res) => {
   res.status(StatusCodes.OK).json(vehicles);
 });
 
+
+// @desc    Get vehicle by ID
+// @route   GET /api/vehicle/:id
+// @access  Private
+const getVehicleById = asyncHandler(async (req, res) => {
+  const vehicle = await Vehicle.findById(req.params.id);
+  
+  if (!vehicle) {
+    res.status(StatusCodes.NOT_FOUND);
+    throw new Error('Vehicle not found');
+  }
+
+  res.status(StatusCodes.OK).json(vehicle);
+});
+// @desc    Get vehicle by vehicleId (custom ID)
+// @route   GET /api/vehicle/by-vehicle-id/:vehicleId
+// @access  Private
+const getVehicleByVehicleId = asyncHandler(async (req, res) => {
+  const vehicle = await Vehicle.findOne({ vehicleId: req.params.vehicleId });
+  
+  if (!vehicle) {
+    res.status(StatusCodes.NOT_FOUND);
+    throw new Error('Vehicle not found');
+  }
+
+  res.status(StatusCodes.OK).json(vehicle);
+});
+
 module.exports = {
     addNewVehicle,
     getAllVehicles,
@@ -169,5 +197,7 @@ module.exports = {
     updateVehicleDetails,
     batchAddVehiclesFromCartrack,
     updateVehicleTracking,
-    getVehiclesByStatus
+    getVehiclesByStatus,
+     getVehicleByVehicleId,
+    getVehicleById  // Add this
 };

@@ -7,4 +7,7 @@ router.get('/getAllDriverBookings', driverBookingController.getAllDriverBookings
 router.get('/getBookingsByDriver', driverBookingController.getDriverBookingsById);
 router.get('/getDriverRequests', driverBookingController.getDriverRequests);
 
+// NEW ROUTE - Add this line
+router.get('/:id', driverBookingController.getDriverBookingById);
+
 module.exports = router;

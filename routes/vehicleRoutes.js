@@ -7,6 +7,8 @@ router.get('/getVehicles', vehicleController.getAllVehicles);
 router.get('/vehicles-with-location', vehicleController.getAllVehiclesWithLocation);
 router.get('/vehicle-with-location/:vehicleReg', vehicleController.getVehicleWithLocation);
 router.get('/getVehiclesByDepartment', vehicleController.getVehiclesByDepartment);
+router.get('/:id', vehicleController.getVehicleById);  // Move this line UP
+router.get('/by-vehicle-id/:vehicleId', vehicleController.getVehicleByVehicleId);
 router.get('/', vehicleController.getVehicleByRegistration);
 router.put('/update-details/:vehicleReg', vehicleController.updateVehicleDetails);
 router.post('/cartrack/batch-create-vehicles', vehicleController.batchAddVehiclesFromCartrack);
