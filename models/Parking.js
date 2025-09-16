@@ -51,7 +51,7 @@ const parkingSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department'
     },

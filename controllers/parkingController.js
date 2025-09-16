@@ -17,7 +17,22 @@ const parkingController = {
             next(error);
         }
     },
-
+// Add this function to your parkingController.js
+getParkingByDepartment: async (req, res, next) => {
+    try {
+        const parkingRecords = await Parking.find({ department: req.params.departmentId })
+            .populate('vehicleId', 'registration make model')
+            .populate('shuttleId', 'name registration')
+            .populate('recordedBy', 'name email');
+        res.status(200).json({
+            success: true,
+            count: parkingRecords.length,
+            data: parkingRecords
+        });
+    } catch (error) {
+        next(error);
+    }
+},
     // Get all parking records
     getAllParkingRecords: async (req, res, next) => {
         try {

@@ -31,7 +31,7 @@ const costSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Vehicle'
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true

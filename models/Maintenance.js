@@ -49,7 +49,7 @@ const maintenanceSchema = new mongoose.Schema({
     nextServiceDue: {
         type: Date
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true

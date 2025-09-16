@@ -6,15 +6,18 @@ const { StatusCodes } = require('http-status-codes');
 // @route   POST /api/driver-booking/create
 // @access  Private
 const bookADriver = asyncHandler(async (req, res) => {
-    const { userId, driverId, vehicleId, bookingDate, pickupLocation, dropoffLocation } = req.body;
+    const { driverId, vehicleId, passengerName, passengerContact, pickupLocation, destination, scheduledPickupTime, department, createdBy } = req.body;
 
     const booking = await DriverBooking.create({
-        userId,
         driverId,
         vehicleId,
-        bookingDate,
+        passengerName,
+        passengerContact,
         pickupLocation,
-        dropoffLocation
+        destination,
+        scheduledPickupTime,
+        department,
+        createdBy
     });
 
     res.status(StatusCodes.CREATED).json(booking);
@@ -24,15 +27,8 @@ const bookADriver = asyncHandler(async (req, res) => {
 // @route   GET /api/driver-booking/getAllDriverBookings
 // @access  Private
 const getAllDriverBookings = asyncHandler(async (req, res) => {
-    const { requester } = req.query;
-
-    let query = {};
-    if (requester) {
-        query.userId = requester;
-    }
-
-    const bookings = await DriverBooking.find(query)
-        .populate('userId', 'firstName lastName')
+    const bookings = await DriverBooking.find()
+        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
         .populate('driverId', 'firstName lastName')
         .populate('vehicleId', 'vehicleReg make model');
 
@@ -43,38 +39,34 @@ const getAllDriverBookings = asyncHandler(async (req, res) => {
 // @route   GET /api/driver-booking/getBookingsByDriver
 // @access  Private
 const getDriverBookingsById = asyncHandler(async (req, res) => {
-  // Use req.params.id instead of req.query.driverId
-  const bookings = await DriverBooking.find({ 
-    driverId: req.params.id  // Changed from req.query.driverId
-  })
-  .populate('userId vehicleId', 'firstName lastName vehicleReg make')
-  .lean();
+    const bookings = await DriverBooking.find({ 
+        driverId: req.params.id
+    })
+    .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
+    .populate('vehicleId', 'vehicleReg make');
 
-  if (!bookings.length) {
-    return res.status(200).json([]); // Explicit empty array
-  }
-
-  res.status(200).json(bookings);
+    res.status(StatusCodes.OK).json(bookings);
 });
 
 // @desc    Get driver requests
-// @route   GET /api/vehicle-request/getDriverRequests
+// @route   GET /api/driver-booking/getDriverRequests
 // @access  Private
 const getDriverRequests = asyncHandler(async (req, res) => {
     const { driver } = req.query;
 
     const requests = await DriverBooking.find({ driverId: driver, status: 'Pending' })
-        .populate('userId', 'firstName lastName')
+        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
         .populate('vehicleId', 'vehicleReg make model');
 
     res.status(StatusCodes.OK).json(requests);
 });
+
 // @desc    Get single driver booking by ID
 // @route   GET /api/driver-booking/:id
 // @access  Private
 const getDriverBookingById = asyncHandler(async (req, res) => {
     const booking = await DriverBooking.findById(req.params.id)
-        .populate('userId', 'firstName lastName')
+        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
         .populate('driverId', 'firstName lastName')
         .populate('vehicleId', 'vehicleReg make model');
 
@@ -86,19 +78,10 @@ const getDriverBookingById = asyncHandler(async (req, res) => {
     res.status(StatusCodes.OK).json(booking);
 });
 
-// Add to exports
 module.exports = {
     bookADriver,
     getAllDriverBookings,
     getDriverBookingsById,
     getDriverRequests,
-    getDriverBookingById // Add this line
-};
-
-module.exports = {
-    bookADriver,
-    getAllDriverBookings,
-    getDriverBookingsById,
-    getDriverRequests,
-    getDriverBookingById // Add this line
+    getDriverBookingById
 };

@@ -6,42 +6,95 @@ const { StatusCodes } = require('http-status-codes');
 // @route   POST /api/user/create-user
 // @access  Private
 const createUser = asyncHandler(async (req, res) => {
-    const { employeeNumber, email, firstName, lastName, grade, department, isAdmin, isDriver, isApprover, isBayManager, isLineManager } = req.body;
+    try {
+        const { employeeNumber, email, password, firstName, lastName, grade, department, isAdmin, isDriver, isApprover, isBayManager, isLineManager } = req.body;
 
-    const user = await User.create({
-        employeeNumber,
-        email,
-        firstName,
-        lastName,
-        grade,
-        department,
-        isAdmin,
-        isDriver,
-        isApprover,
-        isBayManager,
-        isLineManager
-    });
+        // Validate required fields
+        if (!password) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Password is required'
+            });
+        }
 
-    res.status(StatusCodes.CREATED).json(user);
+        const user = await User.create({
+            employeeNumber,
+            email,
+            password, // This will be hashed by the pre-save middleware
+            firstName,
+            lastName,
+            grade,
+            department,
+            isAdmin: isAdmin || false,
+            isDriver: isDriver || false,
+            isApprover: isApprover || false,
+            isBayManager: isBayManager || false,
+            isLineManager: isLineManager || false
+        });
+
+        // Remove password from response
+        const userResponse = user.toObject();
+        delete userResponse.password;
+
+        res.status(StatusCodes.CREATED).json({
+            success: true,
+            message: 'User created successfully',
+            data: userResponse
+        });
+
+    } catch (error) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
+
 
 // @desc    Create driver
 // @route   POST /api/user/create-driver
 // @access  Private
 const createDriver = asyncHandler(async (req, res) => {
-    const { employeeNumber, email, firstName, lastName, grade, department } = req.body;
+    try {
+        const { employeeNumber, email, password, firstName, lastName, grade, department, licenseNumber } = req.body;
 
-    const driver = await User.create({
-        employeeNumber,
-        email,
-        firstName,
-        lastName,
-        grade,
-        department,
-        isDriver: true
-    });
+        // Validate required fields
+        if (!password) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Password is required'
+            });
+        }
 
-    res.status(StatusCodes.CREATED).json(driver);
+        const driver = await User.create({
+            employeeNumber,
+            email,
+            password, // This will be hashed by the pre-save middleware
+            firstName,
+            lastName,
+            grade,
+            department,
+            licenseNumber,
+            isDriver: true,
+            role: 'driver'
+        });
+
+        // Remove password from response
+        const driverResponse = driver.toObject();
+        delete driverResponse.password;
+
+        res.status(StatusCodes.CREATED).json({
+            success: true,
+            message: 'Driver created successfully',
+            data: driverResponse
+        });
+
+    } catch (error) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
 // @desc    Batch add users

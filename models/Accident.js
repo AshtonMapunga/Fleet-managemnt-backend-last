@@ -65,7 +65,7 @@ const accidentSchema = new mongoose.Schema({
             default: Date.now
         }
     }],
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true

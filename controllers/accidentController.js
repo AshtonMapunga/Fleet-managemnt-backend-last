@@ -6,16 +6,16 @@ const { StatusCodes } = require('http-status-codes');
 // @route   POST /api/accidents/createAccident
 // @access  Private
 const recordAccident = asyncHandler(async (req, res) => {
-    const { requestId, accidentDate, accidentLocation, accidentDescription, accidentDamage, status, driver } = req.body;
+    const { vehicleId, driverId, location, description, severity, department, reportedBy } = req.body;
 
     const accident = await Accident.create({
-        requestId,
-        accidentDate,
-        accidentLocation,
-        accidentDescription,
-        accidentDamage,
-        status,
-        driver
+        vehicleId,
+        driverId,
+        location,
+        description,
+        severity,
+        department,
+        reportedBy
     });
 
     res.status(StatusCodes.CREATED).json(accident);
@@ -26,8 +26,9 @@ const recordAccident = asyncHandler(async (req, res) => {
 // @access  Private
 const getAllAccidents = asyncHandler(async (req, res) => {
     const accidents = await Accident.find({})
-        .populate('requestId')
-        .populate('driver', 'firstName lastName');
+        .populate('vehicleId', 'vehicleReg make model')
+        .populate('driverId', 'firstName lastName')
+        .populate('reportedBy', 'firstName lastName');
 
     res.status(StatusCodes.OK).json(accidents);
 });

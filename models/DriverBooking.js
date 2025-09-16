@@ -61,7 +61,7 @@ const driverBookingSchema = new mongoose.Schema({
         type: Number,
         min: [0, 'Cost cannot be negative']
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true

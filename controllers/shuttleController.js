@@ -1,5 +1,4 @@
-// controllers/shuttleController.js
-const Shuttle = require('../models/Shuttle');  // Correct path
+const Shuttle = require('../models/Shuttle');
 
 const shuttleController = {
     // Create a new shuttle
@@ -21,7 +20,7 @@ const shuttleController = {
     // Get all shuttles
     getAllShuttles: async (req, res, next) => {
         try {
-            const shuttles = await Shuttle.find().populate('departmentId', 'name');
+            const shuttles = await Shuttle.find().populate('department', 'name');  // CHANGED departmentId to department
             res.status(200).json({
                 success: true,
                 count: shuttles.length,
@@ -35,7 +34,7 @@ const shuttleController = {
     // Get shuttle by ID
     getShuttleById: async (req, res, next) => {
         try {
-            const shuttle = await Shuttle.findById(req.params.id).populate('departmentId', 'name');
+            const shuttle = await Shuttle.findById(req.params.id).populate('department', 'name');  // CHANGED departmentId to department
             if (!shuttle) {
                 return res.status(404).json({
                     success: false,
@@ -111,7 +110,7 @@ const shuttleController = {
     // Get shuttles by department
     getShuttlesByDepartment: async (req, res, next) => {
         try {
-            const shuttles = await Shuttle.find({ departmentId: req.params.departmentId });
+            const shuttles = await Shuttle.find({ department: req.params.departmentId });  // CHANGED departmentId to department
             res.status(200).json({
                 success: true,
                 count: shuttles.length,

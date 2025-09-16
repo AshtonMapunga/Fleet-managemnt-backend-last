@@ -29,7 +29,7 @@ const shuttleSchema = new mongoose.Schema({
         required: [true, 'Passenger capacity is required'],
         min: [1, 'Capacity must be at least 1']
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true

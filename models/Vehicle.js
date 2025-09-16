@@ -41,7 +41,7 @@ const vehicleSchema = new mongoose.Schema({
         enum: ['available', 'in-use', 'maintenance', 'out-of-service'],
         default: 'available'
     },
-    departmentId: {
+    department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department',
         required: true
