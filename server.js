@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');  // Add this line at the top of server.js
+const mongoose = require('mongoose');
 const express = require('express');
 const connectDB = require('./config/db');
 mongoose.connection.once('open', async () => {
@@ -23,6 +23,8 @@ const departmentRoutes = require('./routes/departmentRoutes');
 const subsidiaryRoutes = require('./routes/subsidiaryRoutes');
 const accidentRoutes = require('./routes/accidentRoutes');
 const userRoutes = require('./routes/userRoutes');
+const shuttleRoutes = require('./routes/shuttleRoutes'); // NEW
+const parkingRoutes = require('./routes/parkingRoutes'); // NEW
 
 // Initialize express app
 const app = express();
@@ -58,6 +60,8 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/subsidiary', subsidiaryRoutes);
 app.use('/api/accidents', accidentRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/shuttles', shuttleRoutes); // NEW
+app.use('/api/parking', parkingRoutes); // NEW
 
 // Error handling middleware
 const errorHandler = require('./middleware/errorMiddleware');

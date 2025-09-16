@@ -1,0 +1,182 @@
+{
+	"info": {
+		"_postman_id": "866b2501-e689-41a5-a88a-849c0681acd3",
+		"name": "fleet management",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "46608693"
+	},
+	"item": [
+		{
+			"name": "get all vehicles",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://fleet-managemnt-backend-last-infama.onrender.com/api/vehicle/getVehicles",
+					"protocol": "https",
+					"host": [
+						"fleet-managemnt-backend-last-infama",
+						"onrender",
+						"com"
+					],
+					"path": [
+						"api",
+						"vehicle",
+						"getVehicles"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get vehicles by id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/vehicle/by-vehicle-id/0987654321",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"vehicle",
+						"by-vehicle-id",
+						"0987654321"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get drivers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/driver-booking/getAllDriverBookings",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"driver-booking",
+						"getAllDriverBookings"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "drivers",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "POST http://localhost:3000/api/driver-booking/bulk-create\r\nContent-Type: application/json\r\nAuthorization: Bearer YOUR_ACCESS_TOKEN\r\n\r\n{\r\n  \"bookings\": [\r\n    {\r\n      \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n      \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b2\",\r\n      \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c3\",\r\n      \"pickupLocation\": \"Nairobi HQ\",\r\n      \"dropoffLocation\": \"Client Site A\",\r\n      \"purpose\": \"Team Deployment\",\r\n      \"bookingDate\": \"2024-06-20T08:00:00Z\"\r\n    },\r\n    {\r\n      \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n      \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b4\",\r\n      \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c5\",\r\n      \"pickupLocation\": \"Nairobi HQ\",\r\n      \"dropoffLocation\": \"Client Site B\",\r\n      \"purpose\": \"Equipment Delivery\",\r\n      \"bookingDate\": \"2024-06-20T09:30:00Z\"\r\n    },\r\n    {\r\n  \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n  \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b2\",\r\n  \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c3\",\r\n  \"pickupLocation\": \"Nairobi CBD\",\r\n  \"dropoffLocation\": \"Jomo Kenyatta Airport\",\r\n  \"purpose\": \"Client Airport Transfer\",\r\n  \"bookingDate\": \"2024-06-15T08:00:00Z\"\r\n}\r\n  ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3001/api/driver-booking/create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"driver-booking",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get driver by id",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3001/api/driver-booking/getBookingsByDriver?driverId=64d5f8a9e4f4b3a7c1f3d2b2",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"driver-booking",
+						"getBookingsByDriver"
+					],
+					"query": [
+						{
+							"key": "driverId",
+							"value": "64d5f8a9e4f4b3a7c1f3d2b2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "drivers",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"bookings\": [\r\n    {\r\n      \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n      \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b2\",\r\n      \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c3\",\r\n      \"pickupLocation\": \"Nairobi HQ\",\r\n      \"dropoffLocation\": \"Client Site A\",\r\n      \"purpose\": \"Team Deployment\",\r\n      \"bookingDate\": \"2024-06-20T08:00:00Z\"\r\n    },\r\n    {\r\n      \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n      \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b4\",\r\n      \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c5\",\r\n      \"pickupLocation\": \"Nairobi HQ\",\r\n      \"dropoffLocation\": \"Client Site B\",\r\n      \"purpose\": \"Equipment Delivery\",\r\n      \"bookingDate\": \"2024-06-20T09:30:00Z\"\r\n    },\r\n    {\r\n      \"userId\": \"64d5f8a9e4f4b3a7c1f3d2a1\",\r\n      \"driverId\": \"64d5f8a9e4f4b3a7c1f3d2b2\",\r\n      \"vehicleId\": \"64d5f8a9e4f4b3a7c1f3d2c3\",\r\n      \"pickupLocation\": \"Nairobi CBD\",\r\n      \"dropoffLocation\": \"Jomo Kenyatta Airport\",\r\n      \"purpose\": \"Client Airport Transfer\",\r\n      \"bookingDate\": \"2024-06-15T08:00:00Z\"\r\n    }\r\n  ]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3001/api/driver-booking/create",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3001",
+					"path": [
+						"api",
+						"driver-booking",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "New Request",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
