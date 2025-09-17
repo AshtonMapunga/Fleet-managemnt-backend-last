@@ -1,4 +1,7 @@
 const DriverBooking = require('../models/DriverBooking');
+const User = require('../models/User');
+const Vehicle = require('../models/Vehicle');
+const emailService = require('../services/emailService');
 const asyncHandler = require('express-async-handler');
 const { StatusCodes } = require('http-status-codes');
 
@@ -6,21 +9,66 @@ const { StatusCodes } = require('http-status-codes');
 // @route   POST /api/driver-booking/create
 // @access  Private
 const bookADriver = asyncHandler(async (req, res) => {
-    const { driverId, vehicleId, passengerName, passengerContact, pickupLocation, destination, scheduledPickupTime, department, createdBy } = req.body;
+    try {
+        const { driverId, vehicleId, passengerName, passengerContact, pickupLocation, destination, scheduledPickupTime, department, createdBy, purpose } = req.body;
 
-    const booking = await DriverBooking.create({
-        driverId,
-        vehicleId,
-        passengerName,
-        passengerContact,
-        pickupLocation,
-        destination,
-        scheduledPickupTime,
-        department,
-        createdBy
-    });
+        // Create booking
+        const booking = await DriverBooking.create({
+            driverId,
+            vehicleId,
+            passengerName,
+            passengerContact,
+            pickupLocation,
+            destination,
+            scheduledPickupTime,
+            department,
+            createdBy,
+            purpose: purpose || ''
+        });
 
-    res.status(StatusCodes.CREATED).json(booking);
+        // Get driver and vehicle details for email
+        const driver = await User.findById(driverId).select('email firstName lastName');
+        const vehicle = await Vehicle.findById(vehicleId).select('make model registration');
+
+        // Send email notification to driver
+        if (driver && driver.email) {
+            try {
+                await emailService.sendDriverBookingEmail(
+                    driver.email,
+                    {
+                        passengerName,
+                        passengerContact,
+                        pickupLocation,
+                        destination,
+                        scheduledPickupTime,
+                        purpose: purpose || '',
+                        vehicleMake: vehicle?.make || 'Unknown',
+                        vehicleModel: vehicle?.model || 'Unknown',
+                        vehicleRegistration: vehicle?.registration || 'Unknown',
+                        driverName: `${driver.firstName} ${driver.lastName}`
+                    }
+                );
+                
+                console.log('✅ Email notification sent to driver:', driver.email);
+            } catch (emailError) {
+                console.error('❌ Failed to send email notification:', emailError);
+                // Don't fail the booking if email fails
+            }
+        }
+
+        res.status(StatusCodes.CREATED).json({
+            success: true,
+            message: driver ? 'Driver booked successfully and notification sent' : 'Driver booked successfully',
+            data: booking
+        });
+
+    } catch (error) {
+        console.error('❌ Booking error:', error);
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
 });
 
 // @desc    Get all driver bookings
@@ -28,7 +76,7 @@ const bookADriver = asyncHandler(async (req, res) => {
 // @access  Private
 const getAllDriverBookings = asyncHandler(async (req, res) => {
     const bookings = await DriverBooking.find()
-        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
+        .populate('createdBy', 'firstName lastName')
         .populate('driverId', 'firstName lastName')
         .populate('vehicleId', 'vehicleReg make model');
 
@@ -42,7 +90,7 @@ const getDriverBookingsById = asyncHandler(async (req, res) => {
     const bookings = await DriverBooking.find({ 
         driverId: req.params.id
     })
-    .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
+    .populate('createdBy', 'firstName lastName')
     .populate('vehicleId', 'vehicleReg make');
 
     res.status(StatusCodes.OK).json(bookings);
@@ -55,7 +103,7 @@ const getDriverRequests = asyncHandler(async (req, res) => {
     const { driver } = req.query;
 
     const requests = await DriverBooking.find({ driverId: driver, status: 'Pending' })
-        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
+        .populate('createdBy', 'firstName lastName')
         .populate('vehicleId', 'vehicleReg make model');
 
     res.status(StatusCodes.OK).json(requests);
@@ -66,7 +114,7 @@ const getDriverRequests = asyncHandler(async (req, res) => {
 // @access  Private
 const getDriverBookingById = asyncHandler(async (req, res) => {
     const booking = await DriverBooking.findById(req.params.id)
-        .populate('createdBy', 'firstName lastName')  // CHANGED from userId to createdBy
+        .populate('createdBy', 'firstName lastName')
         .populate('driverId', 'firstName lastName')
         .populate('vehicleId', 'vehicleReg make model');
 
