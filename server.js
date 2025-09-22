@@ -17,6 +17,7 @@ const rateLimit = require('express-rate-limit');
 const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
+const fuelRoutes = require('./routes/fuelRoutes');
 
 // Connect to MongoDB
 connectDB();
@@ -36,6 +37,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(helmet());
 app.use(cors());
+
 
 // Rate limiting
 const limiter = rateLimit({
@@ -72,6 +74,7 @@ app.use('/api/accidents', accidentRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/shuttles', shuttleRoutes);
 app.use('/api/parking', parkingRoutes);
+app.use('/api/fuel', fuelRoutes);
 
 // Error handling middleware
 const errorHandler = require('./middleware/errorMiddleware');
