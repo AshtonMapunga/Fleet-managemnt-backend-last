@@ -18,7 +18,8 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, 'Password is required'],
-        minlength: [6, 'Password must be at least 6 characters']
+        minlength: [6, 'Password must be at least 6 characters'],
+        select: false
     },
     firstName: {
         type: String,
@@ -86,25 +87,17 @@ const userSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Hash password before saving - FIXED VERSION
+// Hash password before saving
 userSchema.pre('save', async function(next) {
-    // Only run this function if password was actually modified
     if (!this.isModified('password')) return next();
     
     try {
-        // Hash the password with cost of 12
-        const hashedPassword = await bcrypt.hash(this.password, 12);
-        this.password = hashedPassword;
+        this.password = await bcrypt.hash(this.password, 12);
         next();
     } catch (error) {
         next(error);
     }
 });
-
-// Compare password method
-userSchema.methods.correctPassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
-};
 
 // Virtual for full name
 userSchema.virtual('fullName').get(function() {
