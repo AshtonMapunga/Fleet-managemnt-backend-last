@@ -5,10 +5,25 @@ const bcrypt = require('bcryptjs');
 
 // @desc    Create user
 // @route   POST /api/user/create-user
-// @access  Private
+// @access  Private (Admin only)
 const createUser = asyncHandler(async (req, res) => {
     try {
-        const { employeeNumber, email, password, firstName, lastName, grade, department, isAdmin, isDriver, isApprover, isBayManager, isLineManager } = req.body;
+        const { 
+            employeeNumber, email, password, firstName, lastName, grade, department, 
+            role, permissions, departmentAccess, subsidiaryAccess, phone, licenseNumber, licenseExpiry 
+        } = req.body;
+
+        // Check if user has permission to create users
+        if (!req.user.hasPermission('userManagement') && req.user.role !== 'super-admin') {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to create users'
+            });
+        }
+
+        // Get default permissions for the role
+        const defaultPermissions = User.getDefaultPermissions(role || 'user');
+        const finalPermissions = { ...defaultPermissions, ...permissions };
 
         // Hash password before creating user
         const hashedPassword = await bcrypt.hash(password, 12);
@@ -21,11 +36,17 @@ const createUser = asyncHandler(async (req, res) => {
             lastName,
             grade,
             department,
-            isAdmin: isAdmin || false,
-            isDriver: isDriver || false,
-            isApprover: isApprover || false,
-            isBayManager: isBayManager || false,
-            isLineManager: isLineManager || false
+            role: role || 'user',
+            permissions: finalPermissions,
+            departmentAccess: departmentAccess || [],
+            subsidiaryAccess: subsidiaryAccess || [],
+            phone,
+            licenseNumber,
+            licenseExpiry,
+            // Legacy fields for backward compatibility
+            isAdmin: role === 'admin' || role === 'super-admin',
+            isDriver: role === 'driver',
+            status: 'Active'
         });
 
         // Remove password from response
@@ -47,10 +68,21 @@ const createUser = asyncHandler(async (req, res) => {
 
 // @desc    Create driver
 // @route   POST /api/user/create-driver
-// @access  Private
+// @access  Private (Admin/Fleet Manager)
 const createDriver = asyncHandler(async (req, res) => {
     try {
-        const { employeeNumber, email, password, firstName, lastName, grade, department, licenseNumber } = req.body;
+        const { employeeNumber, email, password, firstName, lastName, grade, department, licenseNumber, licenseExpiry, phone } = req.body;
+
+        // Check permissions
+        if (!req.user.hasPermission('userManagement') && !req.user.hasPermission('vehicleManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to create drivers'
+            });
+        }
+
+        // Get default permissions for driver role
+        const defaultPermissions = User.getDefaultPermissions('driver');
 
         // Hash password before creating driver
         const hashedPassword = await bcrypt.hash(password, 12);
@@ -64,8 +96,12 @@ const createDriver = asyncHandler(async (req, res) => {
             grade,
             department,
             licenseNumber,
-            isDriver: true,
-            role: 'driver'
+            licenseExpiry,
+            phone,
+            role: 'driver',
+            permissions: defaultPermissions,
+            // Legacy fields
+            isDriver: true
         });
 
         // Remove password from response
@@ -87,18 +123,34 @@ const createDriver = asyncHandler(async (req, res) => {
 
 // @desc    Batch add users
 // @route   POST /api/user/batch-create-users
-// @access  Private
+// @access  Private (Admin only)
 const batchAddUsers = asyncHandler(async (req, res) => {
     try {
         const { users } = req.body;
 
-        // Hash passwords for all users
+        // Check permissions
+        if (!req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to batch create users'
+            });
+        }
+
+        // Hash passwords for all users and set default permissions
         const usersWithHashedPasswords = await Promise.all(
             users.map(async (user) => {
                 const hashedPassword = await bcrypt.hash(user.password, 12);
+                const defaultPermissions = User.getDefaultPermissions(user.role || 'user');
+                
                 return {
                     ...user,
-                    password: hashedPassword
+                    password: hashedPassword,
+                    permissions: { ...defaultPermissions, ...user.permissions },
+                    departmentAccess: user.departmentAccess || [],
+                    subsidiaryAccess: user.subsidiaryAccess || [],
+                    // Legacy fields
+                    isAdmin: user.role === 'admin' || user.role === 'super-admin',
+                    isDriver: user.role === 'driver'
                 };
             })
         );
@@ -127,10 +179,21 @@ const batchAddUsers = asyncHandler(async (req, res) => {
 
 // @desc    Batch add drivers
 // @route   POST /api/user/batch-create-drivers
-// @access  Private
+// @access  Private (Admin/Fleet Manager)
 const batchAddDrivers = asyncHandler(async (req, res) => {
     try {
         const { drivers } = req.body;
+
+        // Check permissions
+        if (!req.user.hasPermission('userManagement') && !req.user.hasPermission('vehicleManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to batch create drivers'
+            });
+        }
+
+        // Get default permissions for driver role
+        const defaultPermissions = User.getDefaultPermissions('driver');
 
         // Hash passwords for all drivers
         const driversWithHashedPasswords = await Promise.all(
@@ -139,8 +202,10 @@ const batchAddDrivers = asyncHandler(async (req, res) => {
                 return {
                     ...driver,
                     password: hashedPassword,
-                    isDriver: true,
-                    role: 'driver'
+                    permissions: defaultPermissions,
+                    role: 'driver',
+                    // Legacy fields
+                    isDriver: true
                 };
             })
         );
@@ -169,11 +234,21 @@ const batchAddDrivers = asyncHandler(async (req, res) => {
 
 // @desc    Get all users
 // @route   GET /api/user/get-users
-// @access  Private
+// @access  Private (Admin/User Management)
 const getUsers = asyncHandler(async (req, res) => {
     try {
+        // Check permissions
+        if (!req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to view users'
+            });
+        }
+
         const users = await User.find({})
             .populate('department', 'name')
+            .populate('departmentAccess', 'name')
+            .populate('subsidiaryAccess', 'name')
             .select('-password');
 
         res.status(StatusCodes.OK).json({
@@ -189,17 +264,28 @@ const getUsers = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Get all drivers - UPDATED TO USE GET AND QUERY PARAMS
+// @desc    Get all drivers
 // @route   GET /api/user/all-drivers
 // @access  Private
 const getAllDrivers = asyncHandler(async (req, res) => {
     try {
-        // Use query parameters instead of request body for GET
         const { departmentId } = req.query;
 
-        let query = { isDriver: true };
+        let query = { role: 'driver' };
+        
+        // Apply department filter if user has department restrictions
+        if (departmentId && !req.user.canAccessDepartment(departmentId)) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Access denied for this department'
+            });
+        }
+        
         if (departmentId) {
             query.department = departmentId;
+        } else if (req.user.departmentAccess.length > 0) {
+            // Filter by user's accessible departments
+            query.department = { $in: req.user.departmentAccess };
         }
 
         const drivers = await User.find(query)
@@ -226,12 +312,22 @@ const getUserById = asyncHandler(async (req, res) => {
     try {
         const user = await User.findById(req.params.id)
             .populate('department', 'name')
+            .populate('departmentAccess', 'name')
+            .populate('subsidiaryAccess', 'name')
             .select('-password');
 
         if (!user) {
             return res.status(StatusCodes.NOT_FOUND).json({
                 success: false,
                 message: 'User not found'
+            });
+        }
+
+        // Check department access
+        if (!req.user.canAccessDepartment(user.department)) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Access denied for this user\'s department'
             });
         }
 
@@ -252,9 +348,19 @@ const getUserById = asyncHandler(async (req, res) => {
 // @access  Private
 const getDriversByDepartment = asyncHandler(async (req, res) => {
     try {
+        const departmentId = req.params.departmentId;
+
+        // Check department access
+        if (!req.user.canAccessDepartment(departmentId)) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Access denied for this department'
+            });
+        }
+
         const drivers = await User.find({
-            department: req.params.departmentId,
-            isDriver: true
+            department: departmentId,
+            role: 'driver'
         })
         .populate('department', 'name')
         .select('-password');
@@ -274,21 +380,34 @@ const getDriversByDepartment = asyncHandler(async (req, res) => {
 
 // @desc    Batch add drivers from Cartrack
 // @route   POST /api/user/cartrack/batch-create-drivers
-// @access  Private
+// @access  Private (Admin/Fleet Manager)
 const batchAddDriversFromCartrack = asyncHandler(async (req, res) => {
     try {
         const { users } = req.body;
 
-        // Create drivers with default password
+        // Check permissions
+        if (!req.user.hasPermission('userManagement') && !req.user.hasPermission('vehicleManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to import drivers'
+            });
+        }
+
+        // Get default permissions for driver role
+        const defaultPermissions = User.getDefaultPermissions('driver');
+
+        // Create drivers with default password and permissions
         const driversToCreate = users.map(u => ({
             firstName: u.first_name,
             lastName: u.last_name,
             email: u.email,
-            phoneNumber: u.phone_number,
+            phone: u.phone_number,
             password: 'defaultPassword123',
-            isDriver: true,
+            role: 'driver',
+            permissions: defaultPermissions,
             status: u.status || 'Active',
-            role: 'driver'
+            // Legacy fields
+            isDriver: true
         }));
 
         // Hash passwords for all drivers
@@ -342,6 +461,14 @@ const getUserByEmail = asyncHandler(async (req, res) => {
             });
         }
 
+        // Check department access
+        if (!req.user.canAccessDepartment(user.department)) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Access denied for this user\'s department'
+            });
+        }
+
         res.status(StatusCodes.OK).json({
             success: true,
             data: user
@@ -354,22 +481,35 @@ const getUserByEmail = asyncHandler(async (req, res) => {
     }
 });
 
-// @desc    Update user roles
+// @desc    Update user roles and permissions
 // @route   PUT /api/user/update-roles/:id
-// @access  Private
+// @access  Private (Admin only)
 const updateUserRoles = asyncHandler(async (req, res) => {
     try {
-        const { isAdmin, isDriver, isApprover, isBayManager, isLineManager } = req.body;
+        const { role, permissions, departmentAccess, subsidiaryAccess } = req.body;
+
+        // Check permissions
+        if (!req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to update user roles'
+            });
+        }
+
+        // Get default permissions for the new role
+        const defaultPermissions = User.getDefaultPermissions(role);
+        const finalPermissions = { ...defaultPermissions, ...permissions };
 
         const user = await User.findByIdAndUpdate(
             req.params.id,
             { 
-                isAdmin, 
-                isDriver, 
-                isApprover, 
-                isBayManager, 
-                isLineManager,
-                role: isAdmin ? 'admin' : isDriver ? 'driver' : 'user'
+                role,
+                permissions: finalPermissions,
+                departmentAccess,
+                subsidiaryAccess,
+                // Update legacy fields for backward compatibility
+                isAdmin: role === 'admin' || role === 'super-admin',
+                isDriver: role === 'driver'
             },
             { new: true, runValidators: true }
         )
@@ -384,7 +524,7 @@ const updateUserRoles = asyncHandler(async (req, res) => {
 
         res.status(StatusCodes.OK).json({
             success: true,
-            message: 'User roles updated successfully',
+            message: 'User roles and permissions updated successfully',
             data: user
         });
     } catch (error) {
@@ -397,11 +537,11 @@ const updateUserRoles = asyncHandler(async (req, res) => {
 
 // @desc    Get users by role
 // @route   GET /api/user/role/:role
-// @access  Private
+// @access  Private (Admin/User Management)
 const getUsersByRole = asyncHandler(async (req, res) => {
     try {
         const { role } = req.params;
-        const validRoles = ['admin', 'driver', 'approver', 'bayManager', 'lineManager'];
+        const validRoles = ['super-admin', 'admin', 'fleet-manager', 'dispatcher', 'driver', 'viewer', 'user'];
 
         if (!validRoles.includes(role)) {
             return res.status(StatusCodes.BAD_REQUEST).json({
@@ -410,21 +550,18 @@ const getUsersByRole = asyncHandler(async (req, res) => {
             });
         }
 
-        let query = {};
-        if (role === 'admin') {
-            query.isAdmin = true;
-        } else if (role === 'driver') {
-            query.isDriver = true;
-        } else if (role === 'approver') {
-            query.isApprover = true;
-        } else if (role === 'bayManager') {
-            query.isBayManager = true;
-        } else if (role === 'lineManager') {
-            query.isLineManager = true;
+        // Check permissions
+        if (!req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to view users by role'
+            });
         }
 
-        const users = await User.find(query)
+        const users = await User.find({ role })
             .populate('department', 'name')
+            .populate('departmentAccess', 'name')
+            .populate('subsidiaryAccess', 'name')
             .select('-password');
 
         res.status(StatusCodes.OK).json({
@@ -442,10 +579,18 @@ const getUsersByRole = asyncHandler(async (req, res) => {
 
 // @desc    Update user profile
 // @route   PUT /api/user/update/:id
-// @access  Private
+// @access  Private (Admin/User Management)
 const updateUser = asyncHandler(async (req, res) => {
     try {
         const { password, ...updateData } = req.body;
+
+        // Check if user is updating their own profile or has permissions
+        if (req.params.id !== req.user._id.toString() && !req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to update this user'
+            });
+        }
 
         // If password is being updated, hash it
         if (password) {
@@ -481,9 +626,17 @@ const updateUser = asyncHandler(async (req, res) => {
 
 // @desc    Delete user
 // @route   DELETE /api/user/delete/:id
-// @access  Private
+// @access  Private (Admin only)
 const deleteUser = asyncHandler(async (req, res) => {
     try {
+        // Check permissions
+        if (!req.user.hasPermission('userManagement')) {
+            return res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: 'Insufficient permissions to delete users'
+            });
+        }
+
         const user = await User.findByIdAndDelete(req.params.id);
 
         if (!user) {
@@ -496,6 +649,28 @@ const deleteUser = asyncHandler(async (req, res) => {
         res.status(StatusCodes.OK).json({
             success: true,
             message: 'User deleted successfully'
+        });
+    } catch (error) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Get user permissions
+// @route   GET /api/user/permissions
+// @access  Private
+const getUserPermissions = asyncHandler(async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id).select('permissions role');
+        
+        res.status(StatusCodes.OK).json({
+            success: true,
+            data: {
+                permissions: user.permissions,
+                role: user.role
+            }
         });
     } catch (error) {
         res.status(StatusCodes.BAD_REQUEST).json({
@@ -519,5 +694,6 @@ module.exports = {
     updateUserRoles,
     getUsersByRole,
     updateUser,
-    deleteUser
+    deleteUser,
+    getUserPermissions
 };

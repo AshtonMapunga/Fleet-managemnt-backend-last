@@ -51,7 +51,7 @@ const protect = asyncHandler(async (req, res, next) => {
 });
 
 const admin = (req, res, next) => {
-    if (req.user && (req.user.isAdmin || req.user.role === 'admin')) {
+    if (req.user && (req.user.isAdmin || req.user.role === 'admin' || req.user.role === 'super-admin')) {
         next();
     } else {
         res.status(StatusCodes.FORBIDDEN).json({
@@ -61,4 +61,69 @@ const admin = (req, res, next) => {
     }
 };
 
-module.exports = { protect, admin };
+const requirePermission = (permission) => {
+    return (req, res, next) => {
+        if (req.user && req.user.hasPermission(permission)) {
+            next();
+        } else {
+            res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: `Insufficient permissions. Required: ${permission}`
+            });
+        }
+    };
+};
+
+const requireRole = (roles) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(StatusCodes.UNAUTHORIZED).json({
+                success: false,
+                message: 'Authentication required'
+            });
+        }
+
+        const userRoles = Array.isArray(roles) ? roles : [roles];
+        if (userRoles.includes(req.user.role)) {
+            next();
+        } else {
+            res.status(StatusCodes.FORBIDDEN).json({
+                success: false,
+                message: `Insufficient role. Required: ${userRoles.join(', ')}`
+            });
+        }
+    };
+};
+
+const requireDepartmentAccess = (req, res, next) => {
+    if (!req.user) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+
+    // If no department ID in request, proceed
+    if (!req.params.departmentId && !req.body.department && !req.query.departmentId) {
+        return next();
+    }
+
+    const departmentId = req.params.departmentId || req.body.department || req.query.departmentId;
+    
+    if (req.user.canAccessDepartment(departmentId)) {
+        next();
+    } else {
+        res.status(StatusCodes.FORBIDDEN).json({
+            success: false,
+            message: 'Access denied for this department'
+        });
+    }
+};
+
+module.exports = { 
+    protect, 
+    admin, 
+    requirePermission, 
+    requireRole,
+    requireDepartmentAccess 
+};

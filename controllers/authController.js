@@ -23,6 +23,9 @@ const registerUser = asyncHandler(async (req, res) => {
             });
         }
 
+        // Get default permissions for user role
+        const defaultPermissions = User.getDefaultPermissions('user');
+
         // Create user
         const user = await User.create({
             employeeNumber,
@@ -33,6 +36,7 @@ const registerUser = asyncHandler(async (req, res) => {
             phone,
             department,
             role: 'user',
+            permissions: defaultPermissions,
             status: 'Active'
         });
 
@@ -50,7 +54,8 @@ const registerUser = asyncHandler(async (req, res) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role,
-                department: user.department
+                department: user.department,
+                permissions: user.permissions
             }
         });
     } catch (error) {
@@ -123,6 +128,9 @@ const loginUser = asyncHandler(async (req, res) => {
                 lastName: user.lastName,
                 role: user.role,
                 department: user.department,
+                permissions: user.permissions,
+                departmentAccess: user.departmentAccess,
+                subsidiaryAccess: user.subsidiaryAccess,
                 lastLogin: user.lastLogin
             }
         });
@@ -136,12 +144,85 @@ const loginUser = asyncHandler(async (req, res) => {
 
 // @desc    Get current logged in user
 // @route   GET /api/user/me
-// @access  Public
+// @access  Private
 const getMe = asyncHandler(async (req, res) => {
     try {
+        const user = await User.findById(req.user._id)
+            .populate('department', 'name')
+            .populate('departmentAccess', 'name')
+            .populate('subsidiaryAccess', 'name')
+            .select('-password');
+
         res.status(StatusCodes.OK).json({
             success: true,
-            message: 'User profile endpoint'
+            data: user
+        });
+    } catch (error) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Update user profile
+// @route   PUT /api/user/profile
+// @access  Private
+const updateProfile = asyncHandler(async (req, res) => {
+    try {
+        const { firstName, lastName, phone, licenseNumber, licenseExpiry } = req.body;
+        
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { 
+                firstName, 
+                lastName, 
+                phone, 
+                licenseNumber, 
+                licenseExpiry 
+            },
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: 'Profile updated successfully',
+            data: user
+        });
+    } catch (error) {
+        res.status(StatusCodes.BAD_REQUEST).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+// @desc    Change password
+// @route   PUT /api/user/change-password
+// @access  Private
+const changePassword = asyncHandler(async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+
+        // Get user with password
+        const user = await User.findById(req.user._id).select('+password');
+
+        // Check current password
+        const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isCurrentPasswordValid) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+
+        // Update password
+        user.password = newPassword;
+        await user.save();
+
+        res.status(StatusCodes.OK).json({
+            success: true,
+            message: 'Password changed successfully'
         });
     } catch (error) {
         res.status(StatusCodes.BAD_REQUEST).json({
@@ -154,5 +235,7 @@ const getMe = asyncHandler(async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
-    getMe
+    getMe,
+    updateProfile,
+    changePassword
 };
