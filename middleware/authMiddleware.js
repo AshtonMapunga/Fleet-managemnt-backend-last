@@ -1,4 +1,4 @@
-const { verifyToken } = require('../utils/generateToken');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const asyncHandler = require('express-async-handler');
 const { StatusCodes } = require('http-status-codes');
@@ -12,7 +12,7 @@ const protect = asyncHandler(async (req, res, next) => {
             token = req.headers.authorization.split(' ')[1];
 
             // Verify token
-            const decoded = verifyToken(token);
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
             // Get user from token
             req.user = await User.findById(decoded.id).select('-password');
@@ -25,7 +25,7 @@ const protect = asyncHandler(async (req, res, next) => {
             }
 
             // Check if user changed password after token was issued
-            if (req.user.changedPasswordAfter(decoded.iat)) {
+            if (req.user.changedPasswordAfter && req.user.changedPasswordAfter(decoded.iat)) {
                 return res.status(StatusCodes.UNAUTHORIZED).json({
                     success: false,
                     message: 'User recently changed password. Please log in again.'
@@ -34,15 +34,13 @@ const protect = asyncHandler(async (req, res, next) => {
 
             next();
         } catch (error) {
-            console.error('Token verification error:', error);
+            console.error('Token verification error:', error.message);
             res.status(StatusCodes.UNAUTHORIZED).json({
                 success: false,
                 message: 'Not authorized, token failed'
             });
         }
-    }
-
-    if (!token) {
+    } else {
         res.status(StatusCodes.UNAUTHORIZED).json({
             success: false,
             message: 'Not authorized, no token'
@@ -63,7 +61,7 @@ const admin = (req, res, next) => {
 
 const requirePermission = (permission) => {
     return (req, res, next) => {
-        if (req.user && req.user.hasPermission(permission)) {
+        if (req.user && req.user.hasPermission && req.user.hasPermission(permission)) {
             next();
         } else {
             res.status(StatusCodes.FORBIDDEN).json({
@@ -110,7 +108,7 @@ const requireDepartmentAccess = (req, res, next) => {
 
     const departmentId = req.params.departmentId || req.body.department || req.query.departmentId;
     
-    if (req.user.canAccessDepartment(departmentId)) {
+    if (req.user.canAccessDepartment && req.user.canAccessDepartment(departmentId)) {
         next();
     } else {
         res.status(StatusCodes.FORBIDDEN).json({

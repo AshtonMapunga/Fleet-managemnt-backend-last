@@ -51,8 +51,8 @@ const maintenanceSchema = new mongoose.Schema({
     },
     department: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Department',
-        required: true
+        ref: 'Department'
+        // REMOVE required: true to make it optional
     },
     performedBy: {
         type: mongoose.Schema.Types.ObjectId,

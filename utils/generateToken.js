@@ -1,9 +1,22 @@
 const jwt = require('jsonwebtoken');
 
+// Generate JWT token
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d'
+        expiresIn: process.env.JWT_EXPIRES_IN || '30d',
     });
 };
 
-module.exports = { generateToken };
+// Verify JWT token
+const verifyToken = (token) => {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+        throw new Error('Invalid token');
+    }
+};
+
+module.exports = {
+    generateToken,
+    verifyToken
+};

@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { generateToken } = require('../utils/generateToken');
+const jwt = require('jsonwebtoken');
 const asyncHandler = require('express-async-handler');
 const { StatusCodes } = require('http-status-codes');
 const bcrypt = require('bcryptjs');
@@ -41,7 +41,9 @@ const registerUser = asyncHandler(async (req, res) => {
         });
 
         // Generate token
-        const token = generateToken(user._id);
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+        });
 
         res.status(StatusCodes.CREATED).json({
             success: true,
@@ -114,7 +116,9 @@ const loginUser = asyncHandler(async (req, res) => {
         await user.save({ validateBeforeSave: false });
 
         // Generate token
-        const token = generateToken(user._id);
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: process.env.JWT_EXPIRES_IN || '30d',
+        });
 
         res.status(StatusCodes.OK).json({
             success: true,
