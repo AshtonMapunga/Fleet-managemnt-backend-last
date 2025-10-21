@@ -1,31 +1,33 @@
 const mongoose = require('mongoose');
 
 const departmentSchema = new mongoose.Schema({
-    name: {
+    departmentName: {
         type: String,
         required: [true, 'Department name is required'],
         unique: true,
         trim: true
     },
-    code: {
+    departmentDescription: {
         type: String,
-        required: [true, 'Department code is required'],
-        unique: true,
-        uppercase: true,
         trim: true
     },
-    budget: {
-        type: Number,
-        required: [true, 'Budget is required'],
-        min: [0, 'Budget cannot be negative']
-    },
-    currentSpending: {
-        type: Number,
-        default: 0
-    },
-    managerId: {
+    departmentHead: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    },
+    allocatedFunds: {
+        type: Number,
+        default: 0,
+        min: [0, 'Allocated funds cannot be negative']
+    },
+    availableFunds: {
+        type: Number,
+        default: 0,
+        min: [0, 'Available funds cannot be negative']
+    },
+    subsidiary: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Subsidiary'
     },
     contactEmail: {
         type: String,
@@ -44,9 +46,12 @@ const departmentSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Update current spending when costs are added
-departmentSchema.methods.updateSpending = function(amount) {
-    this.currentSpending += amount;
+// Update available funds when costs are deducted
+departmentSchema.methods.deductFunds = function(amount) {
+    if (this.availableFunds < amount) {
+        throw new Error('Insufficient funds');
+    }
+    this.availableFunds -= amount;
     return this.save();
 };
 

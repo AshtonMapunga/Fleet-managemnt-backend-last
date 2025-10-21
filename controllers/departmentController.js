@@ -3,32 +3,60 @@ const asyncHandler = require('express-async-handler');
 const { StatusCodes } = require('http-status-codes');
 
 // @desc    Create department
-// @route   POST /api/departments/addDepartment
+// @route   POST /api/departments/create
 // @access  Private
 const createDepartment = asyncHandler(async (req, res) => {
-    const { departmentName, departmentDescription, departmentHead, allocatedFunds, availableFunds, subsidiary } = req.body;
+    const { name, description, departmentHead, allocatedFunds, availableFunds, subsidiary } = req.body;
 
     const department = await Department.create({
-        departmentName,
-        departmentDescription,
+        departmentName: name,
+        departmentDescription: description,
         departmentHead,
         allocatedFunds,
         availableFunds,
         subsidiary
     });
 
-    res.status(StatusCodes.CREATED).json(department);
+    res.status(StatusCodes.CREATED).json({
+        success: true,
+        data: department
+    });
 });
 
 // @desc    Get all departments
-// @route   GET /api/departments/all-departments
+// @route   GET /api/departments
 // @access  Private
 const getAllDepartments = asyncHandler(async (req, res) => {
     const departments = await Department.find({})
         .populate('departmentHead', 'firstName lastName')
         .populate('subsidiary', 'subsidiaryName');
 
-    res.status(StatusCodes.OK).json(departments);
+    res.status(StatusCodes.OK).json({
+        success: true,
+        count: departments.length,
+        data: departments
+    });
+});
+
+// @desc    Get department by ID
+// @route   GET /api/departments/:id
+// @access  Private
+const getDepartmentById = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const department = await Department.findById(id)
+        .populate('departmentHead', 'firstName lastName')
+        .populate('subsidiary', 'subsidiaryName');
+
+    if (!department) {
+        res.status(StatusCodes.NOT_FOUND);
+        throw new Error('Department not found');
+    }
+
+    res.status(StatusCodes.OK).json({
+        success: true,
+        data: department
+    });
 });
 
 // @desc    Update department budget
@@ -49,7 +77,10 @@ const updateDepartmentBudget = asyncHandler(async (req, res) => {
         throw new Error('Department not found');
     }
 
-    res.status(StatusCodes.OK).json(department);
+    res.status(StatusCodes.OK).json({
+        success: true,
+        data: department
+    });
 });
 
 // @desc    Get department budget
@@ -67,8 +98,11 @@ const getDepartmentBudget = asyncHandler(async (req, res) => {
     }
 
     res.status(StatusCodes.OK).json({
-        allocatedFunds: department.allocatedFunds,
-        availableFunds: department.availableFunds
+        success: true,
+        data: {
+            allocatedFunds: department.allocatedFunds,
+            availableFunds: department.availableFunds
+        }
     });
 });
 
@@ -77,11 +111,14 @@ const getDepartmentBudget = asyncHandler(async (req, res) => {
 // @access  Private
 const editDepartment = asyncHandler(async (req, res) => {
     const { departmentId } = req.query;
-    const { departmentName, departmentDescription } = req.body;
+    const { name, description } = req.body;
 
     const department = await Department.findByIdAndUpdate(
         departmentId,
-        { departmentName, departmentDescription },
+        { 
+            departmentName: name, 
+            departmentDescription: description 
+        },
         { new: true, runValidators: true }
     );
 
@@ -90,7 +127,10 @@ const editDepartment = asyncHandler(async (req, res) => {
         throw new Error('Department not found');
     }
 
-    res.status(StatusCodes.OK).json(department);
+    res.status(StatusCodes.OK).json({
+        success: true,
+        data: department
+    });
 });
 
 // @desc    Deduct funds from department
@@ -115,12 +155,16 @@ const deductFunds = asyncHandler(async (req, res) => {
     department.availableFunds -= amount;
     await department.save();
 
-    res.status(StatusCodes.OK).json(department);
+    res.status(StatusCodes.OK).json({
+        success: true,
+        data: department
+    });
 });
 
 module.exports = {
     createDepartment,
     getAllDepartments,
+    getDepartmentById,
     updateDepartmentBudget,
     getDepartmentBudget,
     editDepartment,
