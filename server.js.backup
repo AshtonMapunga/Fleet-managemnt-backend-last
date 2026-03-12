@@ -45,7 +45,6 @@ const departmentRoutes = require('./routes/departmentRoutes');
 const userRoutes = require('./routes/userRoutes');
 const fuelRoutes = require('./routes/fuelRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const driverRoutes = require('./routes/driverRoutes'); // New driver routes
 
 // Routes
 app.use('/api/vehicle', vehicleRoutes);
@@ -55,7 +54,6 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/fuel', fuelRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/driver', driverRoutes); // Mount driver routes
 
 // GUARANTEED SUPER ADMIN CREATION
 /**
@@ -130,7 +128,7 @@ app.post('/api/create-super-admin', async (req, res) => {
       lastName = 'Admin' 
     } = req.body;
 
-    console.log('í´„ Creating super admin...');
+    console.log('ğŸ”„ Creating super admin...');
     
     // Delete any existing user with same email or employee number
     await User.deleteMany({
@@ -257,7 +255,7 @@ app.post('/api/test/create-test-data', async (req, res) => {
     const User = require('./models/User');
     const Vehicle = require('./models/Vehicle');
     const Department = require('./models/Department');
-    const Trip = require('./models/Trip'); // Add Trip model
+    const bcrypt = require('bcryptjs');
 
     // Create a test department if none exists
     let department = await Department.findOne();
@@ -269,51 +267,31 @@ app.post('/api/test/create-test-data', async (req, res) => {
     }
 
     // Create test driver
-    let driver = await User.findOne({ email: 'driver@test.com' });
-    if (!driver) {
-      driver = await User.create({
-        employeeNumber: 'DRV001',
-        email: 'driver@test.com',
-        password: 'driver123',
-        firstName: 'Test',
-        lastName: 'Driver',
-        phone: '+255123456789',
-        department: department._id,
-        role: 'driver',
-        licenseNumber: 'DL123456',
-        licenseExpiry: '2025-12-31',
-        status: 'Active'
-      });
-    }
+    const driver = await User.create({
+      employeeNumber: 'DRV001',
+      email: 'driver@test.com',
+      password: 'driver123',
+      firstName: 'Test',
+      lastName: 'Driver',
+      phone: '+255123456789',
+      department: department._id,
+      role: 'driver',
+      licenseNumber: 'DL123456',
+      licenseExpiry: '2025-12-31'
+    });
 
     // Create test vehicle
-    let vehicle = await Vehicle.findOne({ registration: 'TEST001' });
-    if (!vehicle) {
-      vehicle = await Vehicle.create({
-        registration: 'TEST001',
-        make: 'Toyota',
-        model: 'Hilux',
-        year: 2022,
-        color: 'White',
-        vehicleType: 'truck',
-        fuelType: 'diesel',
-        department: department._id,
-        insuranceExpiry: '2024-12-31',
-        status: 'available'
-      });
-    }
-
-    // Create a test trip
-    const trip = await Trip.create({
-      driver: driver._id,
-      vehicle: vehicle._id,
-      startLocation: 'Dar es Salaam',
-      destination: 'Arusha',
-      route: 'Dar es Salaam - Morogoro - Dodoma - Arusha',
-      status: 'scheduled',
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      createdBy: driver._id,
-      department: department._id
+    const vehicle = await Vehicle.create({
+      registration: 'TEST001',
+      make: 'Toyota',
+      model: 'Hilux',
+      year: 2022,
+      color: 'White',
+      vehicleType: 'truck',
+      fuelType: 'diesel',
+      department: department._id,
+      insuranceExpiry: '2024-12-31',
+      status: 'available'
     });
 
     res.json({
@@ -322,12 +300,10 @@ app.post('/api/test/create-test-data', async (req, res) => {
       data: {
         driverId: driver._id,
         vehicleId: vehicle._id,
-        departmentId: department._id,
-        tripId: trip._id
+        departmentId: department._id
       }
     });
   } catch (error) {
-    console.error('Error creating test data:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -361,28 +337,23 @@ app.post('/api/test/create-test-data', async (req, res) => {
  *                       type: array
  *                     departments:
  *                       type: array
- *                     trips:
- *                       type: array
  */
 app.get('/api/test/get-ids', async (req, res) => {
   try {
     const User = require('./models/User');
     const Vehicle = require('./models/Vehicle');
     const Department = require('./models/Department');
-    const Trip = require('./models/Trip');
 
     const drivers = await User.find({ role: 'driver' }).select('_id firstName lastName');
     const vehicles = await Vehicle.find().select('_id registration make model');
     const departments = await Department.find().select('_id name');
-    const trips = await Trip.find().select('_id tripNumber status');
 
     res.json({
       success: true,
       data: {
         drivers,
         vehicles,
-        departments,
-        trips
+        departments
       }
     });
   } catch (error) {
@@ -408,13 +379,12 @@ app.use('*', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`íº€ Server running on port ${PORT}`);
-  console.log(`í³š Swagger Documentation: http://localhost:${PORT}/api-docs`);
-  console.log(`í³Š Admin routes available at /api/admin`);
-  console.log(`í±¥ User management available at /api/user`);
-  console.log(`íº— Driver routes available at /api/driver`);
-  console.log(`í¾¯ Super admin creation at /api/create-super-admin`);
-  console.log(`í·ª Create test data at /api/test/create-test-data`);
-  console.log(`í¶” Get real IDs at /api/test/get-ids`);
+  console.log(`ğŸš€ Server running on port ${PORT}`);
+  console.log(`ğŸ“š Swagger Documentation: http://localhost:${PORT}/api-docs`);
+  console.log(`ğŸ“Š Admin routes available at /api/admin`);
+  console.log(`ğŸ‘¥ User management available at /api/user`);
+  console.log(`ğŸ¯ Super admin creation at /api/create-super-admin`);
+  console.log(`ğŸ§ª Create test data at /api/test/create-test-data`);
+  console.log(`ğŸ†” Get real IDs at /api/test/get-ids`);
   console.log(`â¤ï¸  Health check at /api/health`);
 });

@@ -1,98 +1,79 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const userSchema = new mongoose.Schema({
     employeeNumber: {
         type: String,
-        required: [true, 'Employee number is required'],
-        unique: true,
-        trim: true
+        required: true,
+        unique: true
     },
     email: {
         type: String,
-        required: [true, 'Email is required'],
+        required: true,
         unique: true,
-        lowercase: true,
-        match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+        lowercase: true
     },
     password: {
         type: String,
-        required: [true, 'Password is required'],
-        minlength: [6, 'Password must be at least 6 characters'],
+        required: true,
         select: false
     },
     firstName: {
         type: String,
-        required: [true, 'First name is required'],
-        trim: true
+        required: true
     },
     lastName: {
         type: String,
-        required: [true, 'Last name is required'],
-        trim: true
+        required: true
     },
-    grade: {
-        type: String,
-        trim: true
-    },
-    role: {
-        type: String,
-        enum: ['super-admin', 'admin', 'fleet-manager', 'dispatcher', 'driver', 'viewer', 'user'],
-        default: 'user'
-    },
-    permissions: {
-        dashboard: { type: Boolean, default: false },
-        userManagement: { type: Boolean, default: false },
-        vehicleManagement: { type: Boolean, default: false },
-        tripManagement: { type: Boolean, default: false },
-        maintenanceManagement: { type: Boolean, default: false },
-        fuelManagement: { type: Boolean, default: false },
-        analytics: { type: Boolean, default: false },
-        compliance: { type: Boolean, default: false },
-        systemSettings: { type: Boolean, default: false },
-        communication: { type: Boolean, default: false }
+    phone: {
+        type: String
     },
     department: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Department'
     },
-    departmentAccess: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Department'
-    }],
-    subsidiaryAccess: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Subsidiary'
-    }],
-    phone: {
+    role: {
         type: String,
-        trim: true
+        enum: ['super-admin', 'admin', 'manager', 'driver', 'maintenance', 'fuel-attendant'],
+        default: 'driver'
     },
+    // Driver specific fields
     licenseNumber: {
-        type: String,
-        trim: true
+        type: String
     },
     licenseExpiry: {
         type: Date
     },
-    // Legacy fields for backward compatibility
+    licenseClass: {
+        type: String
+    },
+    licenseImage: {
+        type: String
+    },
+    profileImage: {
+        type: String
+    },
+    address: {
+        street: String,
+        city: String,
+        state: String,
+        zipCode: String,
+        country: String
+    },
+    emergencyContact: {
+        name: String,
+        phone: String,
+        relationship: String
+    },
+    // Permissions
+    permissions: {
+        type: Map,
+        of: Boolean,
+        default: {}
+    },
     isAdmin: {
-        type: Boolean,
-        default: false
-    },
-    isDriver: {
-        type: Boolean,
-        default: false
-    },
-    isApprover: {
-        type: Boolean,
-        default: false
-    },
-    isBayManager: {
-        type: Boolean,
-        default: false
-    },
-    isLineManager: {
         type: Boolean,
         default: false
     },
@@ -104,32 +85,46 @@ const userSchema = new mongoose.Schema({
     lastLogin: {
         type: Date
     },
-    passwordChangedAt: Date,
+    passwordChangedAt: {
+        type: Date
+    },
     passwordResetToken: String,
-    passwordResetExpires: Date
+    passwordResetExpires: Date,
+    refreshToken: String
 }, {
     timestamps: true
 });
 
-// Hash password before saving
+// Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
-    if (!this.isModified('password')) return next();
-    
-    try {
-        this.password = await bcrypt.hash(this.password, 12);
-        this.passwordChangedAt = Date.now() - 1000;
-        next();
-    } catch (error) {
-        next(error);
+    if (!this.isModified('password')) {
+        return next();
     }
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    this.passwordChangedAt = Date.now() - 1000; // Subtract 1 second to ensure token is created after password change
+    next();
 });
 
-// Virtual for full name
-userSchema.virtual('fullName').get(function() {
-    return `${this.firstName} ${this.lastName}`;
-});
+// Sign JWT and return
+userSchema.methods.getSignedJwtToken = function() {
+    return jwt.sign(
+        { 
+            id: this._id,
+            role: this.role,
+            employeeNumber: this.employeeNumber 
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE || '30d' }
+    );
+};
 
-// Method to check if password was changed after token was issued
+// Match user entered password to hashed password in database
+userSchema.methods.matchPassword = async function(enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Check if password was changed after JWT was issued
 userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
     if (this.passwordChangedAt) {
         const changedTimestamp = parseInt(this.passwordChangedAt.getTime() / 1000, 10);
@@ -138,103 +133,37 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
     return false;
 };
 
-// Method to check permissions
+// Generate password reset token
+userSchema.methods.createPasswordResetToken = function() {
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    
+    this.passwordResetToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+    
+    this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+    
+    return resetToken;
+};
+
+// Check if user has permission
 userSchema.methods.hasPermission = function(permission) {
     if (this.role === 'super-admin') return true;
-    return this.permissions[permission] === true;
+    return this.permissions && this.permissions[permission] === true;
 };
 
-// Method to check department access
+// Check if user can access department
 userSchema.methods.canAccessDepartment = function(departmentId) {
     if (this.role === 'super-admin') return true;
-    if (this.departmentAccess.length === 0) return true; // No restrictions
-    return this.departmentAccess.some(dept => dept.toString() === departmentId.toString());
+    if (this.role === 'admin') return true;
+    return this.department && this.department.toString() === departmentId.toString();
 };
 
-// Method to check role
-userSchema.methods.hasRole = function(roles) {
-    const roleArray = Array.isArray(roles) ? roles : [roles];
-    return roleArray.includes(this.role);
-};
-
-// Static method to get default permissions for a role
-userSchema.statics.getDefaultPermissions = function(role) {
-    const defaultPermissions = {
-        'super-admin': {
-            dashboard: true,
-            userManagement: true,
-            vehicleManagement: true,
-            tripManagement: true,
-            maintenanceManagement: true,
-            fuelManagement: true,
-            analytics: true,
-            compliance: true,
-            systemSettings: true,
-            communication: true
-        },
-        'admin': {
-            dashboard: true,
-            userManagement: true,
-            vehicleManagement: true,
-            tripManagement: true,
-            maintenanceManagement: true,
-            fuelManagement: true,
-            analytics: true,
-            compliance: true,
-            systemSettings: false,
-            communication: true
-        },
-        'fleet-manager': {
-            dashboard: true,
-            userManagement: false,
-            vehicleManagement: true,
-            tripManagement: true,
-            maintenanceManagement: true,
-            fuelManagement: true,
-            analytics: true,
-            compliance: true,
-            systemSettings: false,
-            communication: true
-        },
-        'dispatcher': {
-            dashboard: true,
-            userManagement: false,
-            vehicleManagement: false,
-            tripManagement: true,
-            maintenanceManagement: false,
-            fuelManagement: false,
-            analytics: false,
-            compliance: false,
-            systemSettings: false,
-            communication: true
-        },
-        'driver': {
-            dashboard: true,
-            userManagement: false,
-            vehicleManagement: false,
-            tripManagement: false,
-            maintenanceManagement: false,
-            fuelManagement: false,
-            analytics: false,
-            compliance: false,
-            systemSettings: false,
-            communication: false
-        },
-        'viewer': {
-            dashboard: true,
-            userManagement: false,
-            vehicleManagement: false,
-            tripManagement: false,
-            maintenanceManagement: false,
-            fuelManagement: false,
-            analytics: true,
-            compliance: false,
-            systemSettings: false,
-            communication: false
-        }
-    };
-
-    return defaultPermissions[role] || {};
-};
+// Virtual for full name
+userSchema.virtual('fullName').get(function() {
+    return `${this.firstName} ${this.lastName}`;
+});
 
 module.exports = mongoose.model('User', userSchema);
