@@ -2,22 +2,26 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const authController = require('../controllers/authController');
-const { protect, requirePermission, requireRole } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
  * tags:
  *   name: Authentication
- *   description: User authentication and profile management
+ *   description: User authentication and registration endpoints
+ *   name: Users
+ *   description: User profile management endpoints
  */
 
-// Public routes - NO protect middleware here
+// ========== PUBLIC ROUTES (No Authentication) ==========
+
 /**
  * @swagger
  * /api/user/register:
  *   post:
- *     summary: Register a new user
+ *     summary: Register a new user (including drivers)
  *     tags: [Authentication]
+ *     description: Create a new user account. Use role="driver" to register as a driver.
  *     requestBody:
  *       required: true
  *       content:
@@ -33,15 +37,15 @@ const { protect, requirePermission, requireRole } = require('../middleware/authM
  *             properties:
  *               employeeNumber:
  *                 type: string
- *                 example: "EMP001"
+ *                 example: "DRV009"
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "user@company.com"
+ *                 example: "driver@gmail.com"
  *               password:
  *                 type: string
  *                 format: password
- *                 example: "password123"
+ *                 example: "driver1234"
  *               firstName:
  *                 type: string
  *                 example: "John"
@@ -50,13 +54,40 @@ const { protect, requirePermission, requireRole } = require('../middleware/authM
  *                 example: "Doe"
  *               phone:
  *                 type: string
- *                 example: "+255123456789"
+ *                 example: "+255712345687"
+ *               role:
+ *                 type: string
+ *                 enum: [driver, admin, manager, maintenance, fuel-attendant]
+ *                 default: driver
+ *                 description: "Set to 'driver' for driver registration"
  *               department:
  *                 type: string
  *                 description: Department ID
+ *               licenseNumber:
+ *                 type: string
+ *                 description: Required for drivers
+ *               licenseExpiry:
+ *                 type: string
+ *                 format: date
+ *                 description: Required for drivers
  *     responses:
  *       201:
  *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "User registered successfully"
+ *                 token:
+ *                   type: string
+ *                 data:
+ *                   type: object
  *       400:
  *         description: Validation error or user already exists
  */
@@ -66,8 +97,9 @@ router.post('/register', authController.registerUser);
  * @swagger
  * /api/user/login:
  *   post:
- *     summary: Authenticate user and get token
+ *     summary: Login user
  *     tags: [Authentication]
+ *     description: Authenticate user and get JWT token
  *     requestBody:
  *       required: true
  *       content:
@@ -81,11 +113,11 @@ router.post('/register', authController.registerUser);
  *               email:
  *                 type: string
  *                 format: email
- *                 example: "super@admin.com"
+ *                 example: "driver@gmail.com"
  *               password:
  *                 type: string
  *                 format: password
- *                 example: "admin123"
+ *                 example: "driver1234"
  *     responses:
  *       200:
  *         description: Login successful
@@ -121,7 +153,7 @@ router.post('/register', authController.registerUser);
  */
 router.post('/login', authController.loginUser);
 
-// Protected routes - ALL routes below this use protect middleware
+// ========== PROTECTED ROUTES (Authentication Required) ==========
 router.use(protect);
 
 /**
@@ -129,12 +161,21 @@ router.use(protect);
  * /api/user/me:
  *   get:
  *     summary: Get current user profile
- *     tags: [Authentication]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: User profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
  *       401:
  *         description: Unauthorized
  */
@@ -145,7 +186,7 @@ router.get('/me', authController.getMe);
  * /api/user/profile:
  *   put:
  *     summary: Update user profile
- *     tags: [Authentication]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -179,7 +220,7 @@ router.put('/profile', authController.updateProfile);
  * /api/user/change-password:
  *   put:
  *     summary: Change user password
- *     tags: [Authentication]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -195,11 +236,9 @@ router.put('/profile', authController.updateProfile);
  *               currentPassword:
  *                 type: string
  *                 format: password
- *                 example: "oldpassword123"
  *               newPassword:
  *                 type: string
  *                 format: password
- *                 example: "newpassword123"
  *     responses:
  *       200:
  *         description: Password changed successfully
@@ -215,7 +254,7 @@ router.put('/change-password', authController.changePassword);
  * /api/user/permissions:
  *   get:
  *     summary: Get user permissions
- *     tags: [Authentication]
+ *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:

@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['super-admin', 'admin', 'manager', 'driver', 'maintenance', 'fuel-attendant'],
+        enum: ['super-admin', 'admin', 'manager', 'driver', 'maintenance', 'fuel-attendant', 'user'],
         default: 'driver'
     },
     // Driver specific fields
@@ -102,17 +102,17 @@ userSchema.pre('save', async function(next) {
     }
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    this.passwordChangedAt = Date.now() - 1000; // Subtract 1 second to ensure token is created after password change
+    this.passwordChangedAt = Date.now() - 1000;
     next();
 });
 
 // Sign JWT and return
 userSchema.methods.getSignedJwtToken = function() {
     return jwt.sign(
-        { 
+        {
             id: this._id,
             role: this.role,
-            employeeNumber: this.employeeNumber 
+            employeeNumber: this.employeeNumber
         },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRE || '30d' }
@@ -137,14 +137,14 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
 userSchema.methods.createPasswordResetToken = function() {
     const crypto = require('crypto');
     const resetToken = crypto.randomBytes(32).toString('hex');
-    
+
     this.passwordResetToken = crypto
         .createHash('sha256')
         .update(resetToken)
         .digest('hex');
-    
-    this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-    
+
+    this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+
     return resetToken;
 };
 
@@ -165,5 +165,96 @@ userSchema.methods.canAccessDepartment = function(departmentId) {
 userSchema.virtual('fullName').get(function() {
     return `${this.firstName} ${this.lastName}`;
 });
+
+// Static method to get default permissions for a role - defined AFTER schema but BEFORE model
+userSchema.statics.getDefaultPermissions = function(role) {
+    const defaultPermissions = {
+        'super-admin': {
+            dashboard: true,
+            userManagement: true,
+            vehicleManagement: true,
+            tripManagement: true,
+            maintenanceManagement: true,
+            fuelManagement: true,
+            analytics: true,
+            compliance: true,
+            systemSettings: true,
+            communication: true
+        },
+        'admin': {
+            dashboard: true,
+            userManagement: true,
+            vehicleManagement: true,
+            tripManagement: true,
+            maintenanceManagement: true,
+            fuelManagement: true,
+            analytics: true,
+            compliance: true,
+            systemSettings: false,
+            communication: true
+        },
+        'manager': {
+            dashboard: true,
+            userManagement: false,
+            vehicleManagement: true,
+            tripManagement: true,
+            maintenanceManagement: true,
+            fuelManagement: true,
+            analytics: true,
+            compliance: true,
+            systemSettings: false,
+            communication: true
+        },
+        'driver': {
+            dashboard: true,
+            userManagement: false,
+            vehicleManagement: false,
+            tripManagement: false,
+            maintenanceManagement: false,
+            fuelManagement: false,
+            analytics: false,
+            compliance: false,
+            systemSettings: false,
+            communication: false
+        },
+        'maintenance': {
+            dashboard: true,
+            userManagement: false,
+            vehicleManagement: true,
+            tripManagement: false,
+            maintenanceManagement: true,
+            fuelManagement: false,
+            analytics: false,
+            compliance: false,
+            systemSettings: false,
+            communication: false
+        },
+        'fuel-attendant': {
+            dashboard: true,
+            userManagement: false,
+            vehicleManagement: false,
+            tripManagement: false,
+            maintenanceManagement: false,
+            fuelManagement: true,
+            analytics: false,
+            compliance: false,
+            systemSettings: false,
+            communication: false
+        },
+        'user': {
+            dashboard: false,
+            userManagement: false,
+            vehicleManagement: false,
+            tripManagement: false,
+            maintenanceManagement: false,
+            fuelManagement: false,
+            analytics: false,
+            compliance: false,
+            systemSettings: false,
+            communication: false
+        }
+    };
+    return defaultPermissions[role] || defaultPermissions['user'];
+};
 
 module.exports = mongoose.model('User', userSchema);

@@ -6,7 +6,7 @@ const options = {
     info: {
       title: 'Fleet Management API',
       version: '1.0.0',
-      description: 'A comprehensive Fleet Management System API for managing vehicles, drivers, trips, maintenance, and fuel records. Use the Create Super Admin endpoint first to get started, then use the login endpoint to get your JWT token.',
+      description: 'Complete Fleet Management System API with vehicles, drivers, trips, maintenance, fuel, departments, driver bookings, and more.',
     },
     servers: [
       {
@@ -18,6 +18,18 @@ const options = {
         description: 'Production server on Render',
       },
     ],
+    tags: [
+      { name: 'Authentication', description: 'User registration and login endpoints' },
+      { name: 'Users', description: 'User profile management endpoints' },
+      { name: 'Drivers', description: 'Driver management endpoints' },
+      { name: 'Vehicles', description: 'Vehicle management endpoints' },
+      { name: 'Departments', description: 'Department management endpoints' },
+      { name: 'Driver Bookings', description: 'Driver booking management endpoints' },
+      { name: 'Fuel', description: 'Fuel management endpoints' },
+      { name: 'Maintenance', description: 'Maintenance management endpoints' },
+      { name: 'Trips', description: 'Trip management endpoints' },
+      { name: 'Admin', description: 'Admin-only endpoints' }
+    ],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -28,7 +40,10 @@ const options = {
       },
     },
   },
-  apis: ['./routes/*.js'], // Path to the API routes
+  apis: [
+    './routes/*.js',
+    './controllers/*.js',
+  ],
 };
 
 const specs = swaggerJsdoc(options);

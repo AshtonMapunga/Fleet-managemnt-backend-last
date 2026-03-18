@@ -2,15 +2,11 @@ const mongoose = require('mongoose');
 const express = require('express');
 const connectDB = require('./config/db');
 const { specs, swaggerUi } = require('./config/swagger');
+const cors = require('cors');
+require('dotenv').config();
 
 // Initialize express app
 const app = express();
-
-// Environment configuration
-require('dotenv').config();
-
-// Middleware imports
-const cors = require('cors');
 
 // Connect to MongoDB
 connectDB();
@@ -45,7 +41,7 @@ const departmentRoutes = require('./routes/departmentRoutes');
 const userRoutes = require('./routes/userRoutes');
 const fuelRoutes = require('./routes/fuelRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const driverRoutes = require('./routes/driverRoutes'); // New driver routes
+const driverRoutes = require('./routes/driverRoutes');
 
 // Routes
 app.use('/api/vehicle', vehicleRoutes);
@@ -55,98 +51,38 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/fuel', fuelRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/driver', driverRoutes); // Mount driver routes
+app.use('/api/driver', driverRoutes);
 
-// GUARANTEED SUPER ADMIN CREATION
-/**
- * @swagger
- * /api/create-super-admin:
- *   post:
- *     summary: Create a super admin user (Development Only)
- *     description: This endpoint creates a super admin user with full permissions. Remove in production.
- *     tags: [Authentication]
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               employeeNumber:
- *                 type: string
- *                 example: "SUPER001"
- *               email:
- *                 type: string
- *                 format: email
- *                 example: "super@admin.com"
- *               password:
- *                 type: string
- *                 format: password
- *                 example: "admin123"
- *               firstName:
- *                 type: string
- *                 example: "Super"
- *               lastName:
- *                 type: string
- *                 example: "Admin"
- *     responses:
- *       201:
- *         description: Super admin created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "SUPER ADMIN CREATED SUCCESSFULLY!"
- *                 data:
- *                   type: object
- *                   properties:
- *                     email:
- *                       type: string
- *                     role:
- *                       type: string
- *                     employeeNumber:
- *                       type: string
- *                     permissions:
- *                       type: object
- *       500:
- *         description: Internal server error
- */
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running successfully',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// SUPER ADMIN CREATION
 app.post('/api/create-super-admin', async (req, res) => {
   try {
     const User = require('./models/User');
     const bcrypt = require('bcryptjs');
     
-    const { 
-      employeeNumber = 'SUPER001', 
-      email = 'super@admin.com', 
-      password = 'admin123', 
-      firstName = 'Super', 
-      lastName = 'Admin' 
-    } = req.body;
-
-    console.log('Ì¥Ñ Creating super admin...');
+    const { employeeNumber = 'SUPER001', email = 'super@admin.com', password = 'admin123' } = req.body;
     
-    // Delete any existing user with same email or employee number
-    await User.deleteMany({
-      $or: [
-        { email: email },
-        { employeeNumber: employeeNumber }
-      ]
-    });
-
-    // Create the super admin user
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Super admin already exists' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 12);
+    
     const superAdmin = await User.create({
-      employeeNumber: employeeNumber,
-      email: email,
-      password: password,
-      firstName: firstName,
-      lastName: lastName,
+      employeeNumber,
+      email,
+      password: hashedPassword,
+      firstName: 'Super',
+      lastName: 'Admin',
       role: 'super-admin',
       permissions: {
         dashboard: true,
@@ -163,233 +99,14 @@ app.post('/api/create-super-admin', async (req, res) => {
       isAdmin: true,
       status: 'Active'
     });
-
-    // Verify the user was created by finding it again
-    const verifiedUser = await User.findOne({ email: email });
-    if (!verifiedUser) {
-      throw new Error('User creation failed - user not found after creation');
-    }
-
-    // Remove password from response
-    const userResponse = verifiedUser.toObject();
-    delete userResponse.password;
-
+    
     res.status(201).json({
       success: true,
-      message: 'SUPER ADMIN CREATED SUCCESSFULLY!',
-      data: userResponse
-    });
-
-  } catch (error) {
-    console.error('‚ùå Error creating super admin:', error.message);
-    res.status(500).json({
-      success: false,
-      message: `Failed to create super admin: ${error.message}`
-    });
-  }
-});
-
-// HEALTH CHECK
-/**
- * @swagger
- * /api/health:
- *   get:
- *     summary: Health check endpoint
- *     tags: [System]
- *     responses:
- *       200:
- *         description: Server is running successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Server is running successfully"
- *                 timestamp:
- *                   type: string
- *                   format: date-time
- */
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is running successfully',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// TEST DATA CREATION
-/**
- * @swagger
- * /api/test/create-test-data:
- *   post:
- *     summary: Create test data (Development Only)
- *     tags: [Testing]
- *     responses:
- *       200:
- *         description: Test data created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     driverId:
- *                       type: string
- *                     vehicleId:
- *                       type: string
- *                     departmentId:
- *                       type: string
- */
-app.post('/api/test/create-test-data', async (req, res) => {
-  try {
-    const User = require('./models/User');
-    const Vehicle = require('./models/Vehicle');
-    const Department = require('./models/Department');
-    const Trip = require('./models/Trip'); // Add Trip model
-
-    // Create a test department if none exists
-    let department = await Department.findOne();
-    if (!department) {
-      department = await Department.create({
-        name: 'Transport Department',
-        description: 'Main transport and logistics department'
-      });
-    }
-
-    // Create test driver
-    let driver = await User.findOne({ email: 'driver@test.com' });
-    if (!driver) {
-      driver = await User.create({
-        employeeNumber: 'DRV001',
-        email: 'driver@test.com',
-        password: 'driver123',
-        firstName: 'Test',
-        lastName: 'Driver',
-        phone: '+255123456789',
-        department: department._id,
-        role: 'driver',
-        licenseNumber: 'DL123456',
-        licenseExpiry: '2025-12-31',
-        status: 'Active'
-      });
-    }
-
-    // Create test vehicle
-    let vehicle = await Vehicle.findOne({ registration: 'TEST001' });
-    if (!vehicle) {
-      vehicle = await Vehicle.create({
-        registration: 'TEST001',
-        make: 'Toyota',
-        model: 'Hilux',
-        year: 2022,
-        color: 'White',
-        vehicleType: 'truck',
-        fuelType: 'diesel',
-        department: department._id,
-        insuranceExpiry: '2024-12-31',
-        status: 'available'
-      });
-    }
-
-    // Create a test trip
-    const trip = await Trip.create({
-      driver: driver._id,
-      vehicle: vehicle._id,
-      startLocation: 'Dar es Salaam',
-      destination: 'Arusha',
-      route: 'Dar es Salaam - Morogoro - Dodoma - Arusha',
-      status: 'scheduled',
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      createdBy: driver._id,
-      department: department._id
-    });
-
-    res.json({
-      success: true,
-      message: 'Test data created successfully',
-      data: {
-        driverId: driver._id,
-        vehicleId: vehicle._id,
-        departmentId: department._id,
-        tripId: trip._id
-      }
+      message: 'Super admin created successfully',
+      data: superAdmin
     });
   } catch (error) {
-    console.error('Error creating test data:', error);
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
-
-// GET REAL IDs
-/**
- * @swagger
- * /api/test/get-ids:
- *   get:
- *     summary: Get real IDs for testing
- *     tags: [Testing]
- *     responses:
- *       200:
- *         description: IDs retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     drivers:
- *                       type: array
- *                     vehicles:
- *                       type: array
- *                     departments:
- *                       type: array
- *                     trips:
- *                       type: array
- */
-app.get('/api/test/get-ids', async (req, res) => {
-  try {
-    const User = require('./models/User');
-    const Vehicle = require('./models/Vehicle');
-    const Department = require('./models/Department');
-    const Trip = require('./models/Trip');
-
-    const drivers = await User.find({ role: 'driver' }).select('_id firstName lastName');
-    const vehicles = await Vehicle.find().select('_id registration make model');
-    const departments = await Department.find().select('_id name');
-    const trips = await Trip.find().select('_id tripNumber status');
-
-    res.json({
-      success: true,
-      data: {
-        drivers,
-        vehicles,
-        departments,
-        trips
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
@@ -412,9 +129,7 @@ app.listen(PORT, () => {
   console.log(`Ì≥ö Swagger Documentation: http://localhost:${PORT}/api-docs`);
   console.log(`Ì≥ä Admin routes available at /api/admin`);
   console.log(`Ì±• User management available at /api/user`);
-  console.log(`Ì∫ó Driver routes available at /api/driver`);
+  console.log(`Ì±§ Driver routes available at /api/driver`);
   console.log(`ÌæØ Super admin creation at /api/create-super-admin`);
-  console.log(`Ì∑™ Create test data at /api/test/create-test-data`);
-  console.log(`Ì∂î Get real IDs at /api/test/get-ids`);
   console.log(`‚ù§Ô∏è  Health check at /api/health`);
 });
